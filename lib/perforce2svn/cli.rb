@@ -3,15 +3,41 @@ require 'optparse'
 module Perforce2Svn
   class CLI
     attr_reader :options, :args
-    
+
+    def initialize(args)
+      @args = args
+    end
+
+    def execute!
+      parse!(@args.dup)
+      # TODO
+    end
 
     def parse!(args)
+      begin
+        parse_options(args)
+      rescue SystemExit => e
+        raise
+      rescue Exception => e
+        STDERR.puts "#{File.basename($0)}: Unable to parse the command line flags"
+        STDERR.puts "Try '#{File.basename($0)} --help' for more information"
+        exit 1
+      end
 
+      if args.length != 1 
+        STDERR.puts "#{File.basename($0)}: Requires the mapping file as an argument"
+        exit 1
+      end
+
+      if not File.exists? args[0]
+        STDERR.puts "#{File.basename($0)}: The mapping file didn't exist: #{args[0]}"
+        exit 1
+      end
     end
 
     def parse_options(args)
       @options ||= {}
-      @parsed_options ||= OptionParser.new do |opt|
+      @parsed_options ||= OptionParser.new do |opts|
         opts.banner = "Usage: perforce2svn [OPTIONS] MAPPING_FILE"
         opts.separator <<DESC
 Description:
@@ -85,7 +111,10 @@ DESC
 
         opts.on_tail('-m', '--mapping-help',
                      "Shows a detailed mapping file as an example") do |m|
-          puts "TODO"
+          map_file = File.join(File.dirname(__FILE__), 'mapping_example.txt')
+          File.open(map_file, 'r').each do |line|
+            puts line
+          end
           exit
         end
 
@@ -94,7 +123,8 @@ DESC
           puts opts
           exit
         end
-      end
+      end.parse!(args)
+
     end
-  end
+  end # CLI
 end

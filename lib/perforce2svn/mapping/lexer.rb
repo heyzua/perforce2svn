@@ -1,9 +1,9 @@
 
-
 module Perforce2Svn
   module Mapping
     class Token
       attr_reader :value, :line
+      attr_accessor :svn_prefix
 
       def initialize(line, value)
         @value = value
@@ -11,9 +11,13 @@ module Perforce2Svn
       end
 
       def [](index)
-        @line[index]
+        @value[index]
       end
-    end    
+
+      def to_s
+        "{line: #{line}; values: #{value.join(' ')} }"
+      end
+    end
 
     class Lexer
       def initialize(content)
