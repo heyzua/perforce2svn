@@ -1,4 +1,5 @@
 require 'perforce2svn/mapping/lexer'
+require 'perforce2svn/logging'
 
 module Perforce2Svn
   module Mapping
