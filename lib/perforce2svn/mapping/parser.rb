@@ -65,9 +65,20 @@ module Perforce2Svn
               fix_svn_path(1, tok)
             end
           when 'migrate' then
-            
-            fix_svn_path(2)
-         
+            svn_path = tok[2]
+            if not svn_path =~ /^\//
+              if @svn_prefix.nil?
+                log.error "(line: #{tok.line}) No svn-prefix was found, but a relative path was given"
+                return
+              else
+                svn_path = @svn_prefix.chomp('/') + '/' + svn_path
+              end
+            end
+
+            mapping = create_mapping(tok[1], svn_path)
+            if mapping
+              @mapping.branch_mappings << mapping
+            end
           when 'svn-prefix' then 
             if not tok[1] =~ /^\//
               log.error "(line: #{tok.line} The 'svn-prefix' directive argument must begin with a '/'"
@@ -99,8 +110,8 @@ module Perforce2Svn
         end
       end
 
-      def check_perforce_path(tok)
-        puts "TODO"
+      def create_mapping(p4_path, svn_path)
+        
       end
     end
   end
