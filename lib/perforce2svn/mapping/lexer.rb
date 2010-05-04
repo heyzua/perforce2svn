@@ -3,7 +3,6 @@ module Perforce2Svn
   module Mapping
     class Token
       attr_reader :value, :line
-      attr_accessor :svn_prefix
 
       def initialize(line, value)
         @value = value
@@ -12,6 +11,10 @@ module Perforce2Svn
 
       def [](index)
         @value[index]
+      end
+
+      def arg_count
+        @value.length - 1
       end
 
       def to_s

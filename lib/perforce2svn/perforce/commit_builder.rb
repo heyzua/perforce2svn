@@ -4,7 +4,7 @@ require 'open3'
 module Perforce2Svn
   module Perforce
     
-    # Thes standard commit message
+    # These standard commit message
     class PerforceCommit
       attr_reader :author, :log, :time, :paths, :revision
       
@@ -33,6 +33,7 @@ EOF
       end
     end
 
+    # The collection of properties about a Perforce file
     class PerforceFile
       attr_reader :revision, :path, :type, :action
 
@@ -43,14 +44,17 @@ EOF
         @action = action
       end
 
+      # Is this a binary file?
       def binary?
         type =~ /binary/
       end
 
+      # Is this a symlink
       def symlink?
         type =~ /symlink/
       end
 
+      # Was it deleted in the last commit?
       def deleted?
         action == 'delete'
       end
@@ -61,7 +65,7 @@ EOF
     end
 
     # Used to build commit information from the pretty much
-    # crazy data the p4 library returns
+    # crazy data the P4 library returns
     class CommitBuilder
       include Perforce2Svn::Logging
 
@@ -69,6 +73,7 @@ EOF
         @log_converter = Iconv.new('UTF-8//IGNORE/TRANSLIT', 'UTF-8')
       end
 
+      # Builds from a raw P4 library return
       def build_from(raw_commit)
         revision = raw_commit['change'].to_i
         author = raw_commit['user'].to_i
