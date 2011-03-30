@@ -1,4 +1,5 @@
 require 'optparse'
+require 'perforce2svn/errors'
 
 module Perforce2Svn
   class CLI
@@ -9,20 +10,26 @@ module Perforce2Svn
     end
 
     def execute!
-      parse!(@args.dup)
-      # TODO
-    end
-
-    def parse!(args)
       begin
-        parse_options(args)
+        mapping_file = parse!(@args.dup)
+        check_perforce_availability
+        migrator = Migrator.new(mapping_file, options)
+
+        migrator.run!
       rescue SystemExit => e
         raise
+      rescue Perforce2Svn::ConfigurationError => e
+        STERR.puts "#{File.basename($0)}: #{e.message}"
+        exit 1
       rescue Exception => e
         STDERR.puts "#{File.basename($0)}: Unable to parse the command line flags"
         STDERR.puts "Try '#{File.basename($0)} --help' for more information"
         exit 1
       end
+    end
+
+    def parse!(args)
+      parse_options(args)
 
       if args.length != 1 
         STDERR.puts "#{File.basename($0)}: Requires the mapping file as an argument"
@@ -33,6 +40,10 @@ module Perforce2Svn
         STDERR.puts "#{File.basename($0)}: The mapping file didn't exist: #{args[0]}"
         exit 1
       end
+
+      validate_options
+
+      args[0]
     end
 
     def parse_options(args)
@@ -85,14 +96,13 @@ DESC
                 "Skip the 'update' actions in the configuration") do |u|
           options[:skip_updates] = u
         end
-
         opts.on('-p', '--skip-perforce',
                 "Skip the perforce step, and run only the actions") do |p|
           options[:skip_perforce] = p
         end
-
-        opts.on('-a', '--analysis-only',
-                "Runs the analysis of the mapping file, and then exits") do |a|
+        opts.on('-a', '--analyze-only',
+                "Only analyzes your mapping files for possible errors,",
+                "but it does not attempt to run the migration.") do |a|
           options[:analyze] = a
         end
         opts.separator ""
@@ -124,7 +134,48 @@ DESC
           exit
         end
       end.parse!(args)
-
     end
+
+    private
+    def validate_options
+      if options[:changes]
+        if options[:changes] =~ /(\d+)-(\d+|HEAD)/
+          start = $1.to_i
+          if start <= 0
+            raise Perforce2Svn::ConfigurationError, "--changes must begin with a revision number >= 1"
+          end
+          options[:change_start] = start
+
+          options[:change_end] = if $2 != 'HEAD'
+                                   last = $2.to_i
+                                   if last <= 0
+                                     raise Perforce2Svn::ConfigurationError, "--changes must end with a revision number >= 1"
+                                   end
+                                   last
+                                 else
+                                   -1
+                                 end
+        else
+          raise Perforce2Svn::ConfigurationError, "The --changes must specify a revision range in the format START-END"
+        end
+      end        
+    end
+
+    def check_perforce_availability
+      begin
+        require 'P4'
+        if P4.identify =~ /\((\d+.\d+) API\)/
+          maj, min = $1.split(/\./)
+          if maj.to_i < 2009
+            STDERR.puts "Requires a P4 library version >= 2009.2"
+            exit 1
+          end
+        end
+      rescue LoadError
+        STDERR.puts 'Unable to locate the P4 library'
+        exit 1
+      end
+    end
+
   end # CLI
 end

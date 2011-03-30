@@ -4,7 +4,8 @@ require 'rubygems'
 require 'spec/rake/spectask'
 
 task :default => :spec
-task :integration => :spec
+task :test => [:integration, :spec] do
+end
 
 desc "Run the RSpec tests for the main perforce2svn tree"
 Spec::Rake::SpecTask.new(:spec) do |t|
@@ -12,7 +13,7 @@ Spec::Rake::SpecTask.new(:spec) do |t|
   t.libs << File.expand_path("../", __FILE__) # For the 'spec/' mocks
 
   t.spec_files = FileList['spec/perforce2svn/**/*_spec.rb']
-  t.spec_opts = ['-b', '-c', '-f', 'specdoc']
+  t.spec_opts = ['-b', '-c', '-f', 'p']
   t.fail_on_error = false
 end
 
@@ -22,7 +23,7 @@ Spec::Rake::SpecTask.new(:integration) do |t|
   t.libs << File.expand_path("../", __FILE__) # For the 'spec/' mocks
 
   t.spec_files = FileList['spec/integration/**/*_spec.rb']
-  t.spec_opts = ['-b', '-c', '-f', 'specdoc']
+  t.spec_opts = ['-b', '-c', '-f', 'p']
   t.fail_on_error = false
 end  
 

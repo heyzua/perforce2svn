@@ -5,7 +5,7 @@ module Perforce2Svn
   module Mapping
 
     class MappingConfiguration
-      attr_accessor :branch_mappings, :commands
+      attr_reader :branch_mappings, :commands
 
       def initialize
         @branch_mappings = []
@@ -64,32 +64,32 @@ module Perforce2Svn
 
       def add(tok)
         return if not args_ok?(1, tok)
-        @mapping.commands << Add.new(to_svn(tok, 1), to_live(tok, 1))
+        @mapping.commands << Add.new(tok, to_svn(tok, 1), to_live(tok, 1))
       end
         
       def copy(tok)
         return if not args_ok?(2, tok)
-        @mapping.commands << Copy.new(to_svn(tok, 1), to_svn(tok, 2))
+        @mapping.commands << Copy.new(tok, to_svn(tok, 1), to_svn(tok, 2))
       end
 
       def remove(tok)
         return if not args_ok?(1, tok)
-        @mapping.commands << Remove.new(to_svn(tok, 1))
+        @mapping.commands << Remove.new(tok, to_svn(tok, 1))
       end
 
       def mkdir(tok)
         return if not args_ok?(1, tok)
-        @mapping.commands << Mkdir.new(to_svn(tok, 1))
+        @mapping.commands << Mkdir.new(tok, to_svn(tok, 1))
       end
 
       def move(tok)
         return if not args_ok?(2, tok)
-        @mapping.commands << Move.new(to_svn(tok, 1))
+        @mapping.commands << Move.new(tok, to_svn(tok, 1), to_svn(tok, 2))
       end
 
       def update(tok)
         return if not args_ok?(1, tok)
-        @mapping.commands << Update.new(to_svn(tok, 1), to_live(tok, 1))
+        @mapping.commands << Update.new(tok, to_svn(tok, 1), to_live(tok, 1))
       end
 
       def migrate(tok)
@@ -105,12 +105,12 @@ module Perforce2Svn
           @failed = true
         end
 
-        if not svn_path =~ %r|^/?([^/]+/?)*$|
+        if not svn_path =~ %r|^/([^/]+/?)*$|
           log.error "(line #{tok.line}) Subversion path was malformed: '#{svn_path}'"
           @failed = true
         end
 
-        @mapping.branch_mappings << BranchMapping.new(p4_path, svn_path)
+        @mapping.branch_mappings << BranchMapping.new(tok, p4_path, svn_path)
       end
 
       def svn_prefix(tok)
@@ -141,7 +141,7 @@ module Perforce2Svn
           @failed = true
           nil
         else
-          tok[index]
+          "#{@svn_prefix}#{tok[index]}"
         end
       end
 
@@ -151,71 +151,89 @@ module Perforce2Svn
           @failed = true
           nil
         else
-          "#{@live_path}/#{tok[index]}"
+          path = tok[index]
+          if path =~ /^\//
+            "#{@live_path.chomp('/')}#{path}"
+          else
+            "#{@live_path.chomp('/')}#{@svn_prefix}#{path}"
+          end
         end
       end
     end # Mapping
 
+    class Command
+      attr_reader :line_number
+      def initialize(tok)
+        @line_number = tok.line
+      end
+    end
 
-    class Add
+    class Add < Command
       attr_reader :svn_path, :live_path
-      def initialize(svn_path, live_path)
+      def initialize(tok, svn_path, live_path)
+        super(tok)
         @svn_path = svn_path
         @live_path = live_path
       end
     end
 
-    class Copy
+    class Copy < Command
       attr_reader :svn_from, :svn_to
-      def initialize(svn_from, svn_to)
+      def initialize(tok,svn_from, svn_to)
+        super(tok)
         @svn_from = svn_from
         @svn_to = svn_to
       end
     end
 
-    class Mkdir
+    class Mkdir < Command
       attr_reader :svn_path
-      def initialize(svn_path)
+      def initialize(tok, svn_path)
+        super(tok)
         @svn_path = svn_path
       end
     end
 
-    class Move
+    class Move < Command
       attr_reader :svn_from, :svn_to
-      def initialize(svn_from, svn_to)
+      def initialize(tok, svn_from, svn_to)
+        super(tok)
         @svn_from = svn_from
         @svn_to = svn_to
       end
     end
 
-    class Update
+    class Update < Command
       attr_reader :svn_path, :live_path
-      def initialize(svn_path, live_path)
+      def initialize(tok, svn_path, live_path)
+        super(tok)
         @svn_path = svn_path
         @live_path = live_path
       end
     end
 
-    class Remove
+    class Remove < Command
       attr_reader :svn_path
-      def initialize(svn_path)
+      def initialize(tok, svn_path)
+        super(tok)
         @svn_path = svn_path
       end
     end
 
-    class BranchMapping
+    class BranchMapping < Command
       attr_reader :p4_path, :svn_path
 
-      def initialize(p4_path, svn_path)
+      def initialize(tok, p4_path, svn_path)
+        super(tok)
         @p4_path = p4_path
         @svn_path = svn_path
       end
 
       def p4_dotted
-        @p4_dotted + '...'
+        @p4_path + '...'
       end
 
-      def matches?(other_p4_path)
+      def matches_perforce_path?(other_p4_path)
         (other_p4_path =~ /^#{p4_path}/) != nil
       end
 

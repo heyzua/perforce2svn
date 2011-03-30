@@ -1,5 +1,6 @@
-
 require 'perforce2svn/cli'
+require 'perforce2svn/errors'
+require 'spec_helper'
 
 module Perforce2Svn
 
@@ -38,6 +39,11 @@ module Perforce2Svn
       parse('-a')[:analyze].should be(true)
     end
 
-  end
+    describe "validation activity" do
+      it "should fail when the start revision is less than 1" do
+        attempting_to { parse('-c', '0-4') }.should raise_error(Perforce2Svn::ConfigurationError, /change/)
+      end
+    end
 
+  end
 end

@@ -53,9 +53,7 @@ module Perforce2Svn
           raise Perforce2Svn::P4Error, "Requires a block to pull the file stream"
         end
 
-        if log.debug?
-          log.debug "PERFORCE: Reading file: #{path}@#{revision}"
-        end
+        log.debug {  "PERFORCE: Reading file: #{path}@#{revision}" }
 
         tmp = Tempfile.new
         begin
