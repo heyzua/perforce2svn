@@ -1,5 +1,3 @@
-require 'rake'
-
 Gem::Specification.new do |gem|
   gem.name        = "perforce2svn"
   gem.version     = begin

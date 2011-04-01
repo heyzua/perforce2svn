@@ -1,3 +1,6 @@
+require 'stringio'
+require 'time'
+
 def attempting(&block)
   lambda &block
 end

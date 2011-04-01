@@ -6,17 +6,16 @@ module Perforce2Svn
 
     module ParserHelper
       def parse(txt)
-        p = Parser.new(StringIO.new(txt), 'live')
-        p.parse_content
-        p
+        p = Parser.new
+        p.parse!(StringIO.new(txt), 'live')
       end
 
       def mappings(txt)
-        parse(txt).mapping.branch_mappings
+        parse(txt)[:mappings]
       end
 
       def commands(txt)
-        parse(txt).mapping.commands
+        parse(txt)[:commands]
       end
     end
 
@@ -28,22 +27,22 @@ module Perforce2Svn
 # A comment
 not-directive arg
 EOF
-              ).parse_failed?.should be(true)
+              )[:failed].should be(true)
       end
 
       it "should be able to parse 'add's" do
-        parse("add /some/path").parse_failed?.should be(false)
+        parse("add /some/path")[:failed].should be(false)
       end
 
       it "should be able to parse 'migrate'" do
-        c = parse("migrate //depot/path /svn/path").mapping.branch_mappings
+        c = mappings("migrate //depot/path /svn/path")
         c[0].class.should eql(BranchMapping)
         c[0].line_number.should eql(1)
         c[0].svn_path.should eql('/svn/path/')
       end
 
       it "should fail to parse the 'update' command without a svn prefix" do
-        parse("update src/main/pom.xml").parse_failed?.should be(true)
+        parse("update src/main/pom.xml")[:failed].should be(true)
       end
 
       it "should parse the 'update' command when an svn prefix is available" do
@@ -51,7 +50,7 @@ EOF
 svn-prefix /some/path
 update src/main/pom.xml
 EOF
-                  ).parse_failed?.should be(false)
+                  )[:failed].should be(false)
       end
 
       it "should parse the mapping file and return a list of migrations" do
@@ -124,39 +123,5 @@ EOF
       end
 
     end
-
-    module BranchMappingHelper
-      def map(p4, svn)
-        BranchMapping.new(Token.new(nil, 1), p4, svn)
-      end
-    end
-
-    describe "Branch Mappings" do
-      include BranchMappingHelper
-
-      it "should be able to determine when a path doesn't match" do
-        bm = map('//depot/path/', '/svn/path/here')
-        bm.matches_perforce_path?('//depot/not/here').should be(false)
-      end
-
-      it "should be able to determine when a path doesn't match" do
-        bm = map('//depot/path/', '/svn/path/here')        
-        bm.matches_perforce_path?('//depot/path/goes/here').should be(true)
-      end
-
-      it "should be able to format the dotted P4 path" do
-        bm = map('//depot/path/', '/svn/path/here')
-        bm.p4_dotted.should eql('//depot/path/...')
-      end
-
-      it "should be able to translate funky path characters correctly for subversion" do
-        bf = map("//p/", "/o/")
-        bf.to_svn_path("//p/%40/a").should eql("/o/@/a")
-        bf.to_svn_path("//p/%23/a").should eql("/o/#/a")
-        bf.to_svn_path("//p/%2a/a").should eql("/o/*/a")
-        bf.to_svn_path("//p/%25/a").should eql("/o/%/a") 
-      end
-    end
-
   end
 end

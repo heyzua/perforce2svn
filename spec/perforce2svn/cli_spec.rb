@@ -44,17 +44,17 @@ module Perforce2Svn
       it "should fail when the start revision is less than 1" do
         attempting_to { 
           parse('-c', '0:4') 
-        }.should raise_error(Choosy::ClientExecutionError, /--changes/)
+        }.should raise_error(Choosy::ValidationError, /Minimum/)
       end
 
       it "should set -1 when given HEAD" do
-        parse('-c', '1:HEAD')[:change_end].should eql(-1)
+        parse('-c', '1:HEAD')[:changes].max.should eql(-1)
       end
 
       it "should fail when the end revision < 1" do
         attempting_to {
           parse('-c', '1:0')
-        }.should raise_error(Choosy::ClientExecutionError, /end with/)
+        }.should raise_error(Choosy::ValidationError, /Maximum/)
       end
     end
   end

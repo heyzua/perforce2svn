@@ -1,4 +1,5 @@
 require 'perforce2svn/errors'
+require 'perforce2svn/version_range'
 require 'choosy'
 
 module Perforce2Svn
@@ -54,7 +55,7 @@ module Perforce2Svn
           end
           string :changes, "The revision range to import from. This has the format START:END where START >= 1 and END can be any number or 'HEAD'" do
             validate do |args, options|
-              ctx.check_changes(options)
+              options[:changes] = VersionRange.build(options[:changes])
             end
           end
           boolean :skip_updates, "Skip the 'update' actions in the configuration", :short => '-u'
@@ -67,7 +68,8 @@ module Perforce2Svn
           version version_info.to_s
           boolean :mapping_file, "Shows a detailed mapping file example" do
             validate do |args, options|
-              ctx.print_mapping
+              ctx.page(Mapping::MappingFile.help_file)
+              exit 0
             end
           end
           help
@@ -100,48 +102,6 @@ module Perforce2Svn
           end
         end
       end
-    end
-
-    def check_changes(options)
-      if options[:changes] =~ /(\d+):(\d+|HEAD)/
-        start = $1.to_i
-        if start < 1
-          die "--changes must begin with a revision number >= 1"
-        end
-
-        options[:change_start] = start
-        options[:change_end] = if $2 != 'HEAD'
-                                 last = $2.to_i
-                                 if last < 1
-                                   die "--changes must end with a revision number >= 1"
-                                 end
-                                 last
-                               else
-                                 -1 # HEAD
-                               end
-      else
-        die "The --changes must specify a revision range in the format START:END"
-      end
-    end
-
-    def print_mapping
-      map_file = File.join(File.dirname(__FILE__), 'mapping_example.txt')
-      contents = ""
-      color = Choosy::Printing::Color.new
-      File.open(map_file, 'r') do |file|
-        file.each_line do |line|
-          contents << if line =~ /^#/
-                        color.blue(line)
-                      elsif line =~ /^([\w-]+)(.*)/
-                        color.green($1) + $2 + "\n"
-                      else
-                        line
-                      end
-         end
-      end
-              
-      page(contents)
-      exit
     end
   end
 end
