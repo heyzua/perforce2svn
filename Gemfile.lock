@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    perforce2svn (0)
+    perforce2svn (0.1.0)
       choosy (>= 0.4.8)
       log4r (>= 1.1.7)
 

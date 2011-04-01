@@ -1,6 +1,6 @@
 require 'perforce2svn/cli'
 require 'perforce2svn/errors'
-require 'spec_helper'
+require 'spec_helpers'
 
 module Perforce2Svn
   module CLIHelper
@@ -44,7 +44,7 @@ module Perforce2Svn
       it "should fail when the start revision is less than 1" do
         attempting_to { 
           parse('-c', '0:4') 
-        }.should raise_error(Choosy::ValidationError, /--changes/)
+        }.should raise_error(Choosy::ClientExecutionError, /--changes/)
       end
 
       it "should set -1 when given HEAD" do
@@ -54,7 +54,7 @@ module Perforce2Svn
       it "should fail when the end revision < 1" do
         attempting_to {
           parse('-c', '1:0')
-        }.should raise_error(Choosy::ValidationError, /end with/)
+        }.should raise_error(Choosy::ClientExecutionError, /end with/)
       end
     end
   end

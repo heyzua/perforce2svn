@@ -15,26 +15,32 @@ module Perforce2Svn
 
     def command
       ctx = self
+      version_info = Choosy::Version.load_from_parent
       Choosy::Command.new :perforce2svn do
-        printer :standard
+        printer :manpage, 
+                :version => version_info.to_s,
+                :date => version_info.date,
+                :manual => 'Perforce2Svn'
+
         executor do |args, option|
-          ctx.check_perforce_availability
-          
           migrator = Migrator.new(args[0], options)
           migrator.run!
         end
 
-        section 'Description:' do
+        section 'DESCRIPTION' do
           para 'This is a migration tool for migrating specific branches in Perforce into Subversion.  It uses a mapping file to define the branch mappings at the directory level.'
           para 'Because these migrations can be quite complex, and involve more sophisticated translations, this mapping file also allows for much more sophisticated operations on the Subversion repository after the migration, at least somewhat mitigating the difficulties in doing complex transformations in a unified way.'
+          para 'This utility assumes that you have already logged into Perforce and that the P4USER and P4PORT environment variables are set correctly.'
         end
 
-        section 'Mapping File:' do
+        section 'MAPPING FILE' do
+          para "Rather than define all of the file path mappings between the old Perforce repository and the new Subversion repository, this tool requires you to define a mapping file."
+          para "This file contains all of the relevant commands for migrating a complicated set of paths and branches from Perforce into Subversion."
           para "The mapping file has an explicit syntax.  Each line contains a directive and a set of arguments.  Each argument is separated by a space, though that space can be escaped with a '\\' character.  Lines can have comments starting with the '#' character and they continue to the end of the line."
-          para "Please use the '--mapping-help' command for more information."
+          para "Please use the '--mapping-help' command for more detailed information."
         end
 
-        section 'Options:' do
+        section 'OPTIONS' do
           string :repository, "The path to the SVN repository. Required." do
             required
             depends_on :mapping_file
@@ -48,57 +54,39 @@ module Perforce2Svn
           end
           string :changes, "The revision range to import from. This has the format START:END where START >= 1 and END can be any number or 'HEAD'" do
             validate do |args, options|
-              if options[:changes] =~ /(\d+):(\d+|HEAD)/
-                start = $1.to_i
-                if start < 1
-                  die "--changes must begin with a revision number >= 1"
-                end
-
-                options[:change_start] = start
-                options[:change_end] = if $2 != 'HEAD'
-                                         last = $2.to_i
-                                         if last < 1
-                                           die "--changes must end with a revision number >= 1"
-                                         end
-                                         last
-                                        else
-                                          -1 # HEAD
-                                        end
-              else
-                die "The --changes must specify a revision range in the format START:END"
-              end
+              ctx.check_changes(options)
             end
           end
           boolean :skip_updates, "Skip the 'update' actions in the configuration", :short => '-u'
           boolean :skip_perforce, "Skip the perforce step, and run only the actions", :short => '-p'
           boolean :analyze_only, "Only analyzes your mapping files for possible errors, but does not attempt to run the migration."
-        end
 
-        section 'Informative:' do
+          # Informative
+          para 
           boolean :debug, "Prints extra debug information"
-          version Choosy::Version.load_from_parent.to_s
+          version version_info.to_s
           boolean :mapping_file, "Shows a detailed mapping file example" do
             validate do |args, options|
-              map_file = File.join(File.dirname(__FILE__), 'mapping_example.txt')
-              contents = ""
-              color = Choosy::Printing::Color.new
-              File.open(map_file, 'r') do |file|
-                file.each_line do |line|
-                  contents << if line =~ /^#/
-                                color.blue(line)
-                              elsif line =~ /^([\w-]+)(.*)/
-                                color.green($1) + $2 + "\n"
-                              else
-                                line
-                              end
-                end
-              end
-              
-              ctx.page(contents)
-              exit
+              ctx.print_mapping
             end
           end
           help
+        end
+
+        section 'ENVIRONMENT' do
+          para "P4USER   - The username used to connect to the Perforce server"
+          para "P4PORT   - The Perforce server name"
+          para "svnadmin - This tool must be installed"
+          para "p4       - The Perforce command line utility must be installed"
+        end
+
+        section 'BUGS AND LIMITATIONS' do
+          para "While this tool works better than the other, Perl-based tool, it has the same kind of limitations. Namely, it cannot track certain file changes well (like copying or moving). That requires information that isn't readily accessible."
+          para "Also, you may notice that some files are not exactly the same after the migration. The p4 utility occasionally adds newline characters at the end of the file stream, for inexplicable reasons, so sometimes there is an extra newline at the end of some text files. There's really no way around it."
+        end
+
+        section "AUTHOR" do
+          para "Gabe McArthur <madeonamac@gmail.com>"
         end
 
         arguments do
@@ -114,26 +102,46 @@ module Perforce2Svn
       end
     end
 
-    def check_subversion_availability
-      begin
-        require 'svn/core'
-      rescue LoadError
-        die "Unable to locate the native subversion bindings. Please install."
+    def check_changes(options)
+      if options[:changes] =~ /(\d+):(\d+|HEAD)/
+        start = $1.to_i
+        if start < 1
+          die "--changes must begin with a revision number >= 1"
+        end
+
+        options[:change_start] = start
+        options[:change_end] = if $2 != 'HEAD'
+                                 last = $2.to_i
+                                 if last < 1
+                                   die "--changes must end with a revision number >= 1"
+                                 end
+                                 last
+                               else
+                                 -1 # HEAD
+                               end
+      else
+        die "The --changes must specify a revision range in the format START:END"
       end
     end
 
-    def check_perforce_availability
-      begin
-        require 'P4'
-        if P4.identify =~ /\((\d+.\d+) API\)/
-          maj, min = $1.split(/\./)
-          if maj.to_i < 2009
-            die "Requires a P4 library version >= 2009.2"
-          end
-        end
-      rescue LoadError
-        die 'Unable to locate the P4 library, please install p4ruby'
+    def print_mapping
+      map_file = File.join(File.dirname(__FILE__), 'mapping_example.txt')
+      contents = ""
+      color = Choosy::Printing::Color.new
+      File.open(map_file, 'r') do |file|
+        file.each_line do |line|
+          contents << if line =~ /^#/
+                        color.blue(line)
+                      elsif line =~ /^([\w-]+)(.*)/
+                        color.green($1) + $2 + "\n"
+                      else
+                        line
+                      end
+         end
       end
+              
+      page(contents)
+      exit
     end
-  end # CLI
+  end
 end

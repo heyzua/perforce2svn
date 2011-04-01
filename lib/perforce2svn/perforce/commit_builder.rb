@@ -1,4 +1,5 @@
 require 'perforce2svn/logging'
+require 'iconv'
 require 'open3'
 
 module Perforce2Svn
@@ -109,8 +110,6 @@ EOF
         end
         paths
       end
-
     end #PerforceCommit
-
   end
 end
