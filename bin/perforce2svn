@@ -1,5 +1,11 @@
 #!/usr/bin/env ruby
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', 'lib')
 
-require 'perforce2svn/cli'
-Perforce2Svn::CLI.new(ARGV).execute!
+begin
+  require 'rubygems'
+  require 'perforce2svn/cli'
+rescue LoadError
+  $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', 'lib')
+  require 'perforce2svn/cli'
+end
+
+Perforce2Svn::CLI.new.execute!(ARGV)

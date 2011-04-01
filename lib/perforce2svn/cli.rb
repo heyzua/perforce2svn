@@ -1,164 +1,125 @@
-require 'optparse'
 require 'perforce2svn/errors'
+require 'choosy'
 
 module Perforce2Svn
   class CLI
-    attr_reader :options, :args
+    include Choosy::Terminal
 
-    def initialize(args)
-      @args = args
+    def execute!(args)
+      command.execute!(args)
     end
 
-    def execute!
+    def parse!(args, propagate=false)
+      command.parse!(args, propagate)
+    end
+
+    def command
+      ctx = self
+      Choosy::Command.new :perforce2svn do
+        printer :standard
+        executor do |args, option|
+          ctx.check_perforce_availability
+          
+          migrator = Migrator.new(args[0], options)
+          migrator.run!
+        end
+
+        section 'Description:' do
+          para 'This is a migration tool for migrating specific branches in Perforce into Subversion.  It uses a mapping file to define the branch mappings at the directory level.'
+          para 'Because these migrations can be quite complex, and involve more sophisticated translations, this mapping file also allows for much more sophisticated operations on the Subversion repository after the migration, at least somewhat mitigating the difficulties in doing complex transformations in a unified way.'
+        end
+
+        section 'Mapping File:' do
+          para "The mapping file has an explicit syntax.  Each line contains a directive and a set of arguments.  Each argument is separated by a space, though that space can be escaped with a '\\' character.  Lines can have comments starting with the '#' character and they continue to the end of the line."
+          para "Please use the '--mapping-help' command for more information."
+        end
+
+        section 'Options:' do
+          string :repository, "The path to the SVN repository. Required." do
+            required
+            depends_on :mapping_file
+          end
+          string :live_path, "The path to the files you want to add or update" do
+            validate do |args, options|
+              if !File.directory?(options[:live_path])
+                die "The --live-path must be a directory: #{options[:live_path]}"
+              end
+            end
+          end
+          string :changes, "The revision range to import from. This has the format START:END where START >= 1 and END can be any number or 'HEAD'" do
+            validate do |args, options|
+              if options[:changes] =~ /(\d+):(\d+|HEAD)/
+                start = $1.to_i
+                if start < 1
+                  die "--changes must begin with a revision number >= 1"
+                end
+
+                options[:change_start] = start
+                options[:change_end] = if $2 != 'HEAD'
+                                         last = $2.to_i
+                                         if last < 1
+                                           die "--changes must end with a revision number >= 1"
+                                         end
+                                         last
+                                        else
+                                          -1 # HEAD
+                                        end
+              else
+                die "The --changes must specify a revision range in the format START:END"
+              end
+            end
+          end
+          boolean :skip_updates, "Skip the 'update' actions in the configuration", :short => '-u'
+          boolean :skip_perforce, "Skip the perforce step, and run only the actions", :short => '-p'
+          boolean :analyze_only, "Only analyzes your mapping files for possible errors, but does not attempt to run the migration."
+        end
+
+        section 'Informative:' do
+          boolean :debug, "Prints extra debug information"
+          version Choosy::Version.load_from_parent.to_s
+          boolean :mapping_file, "Shows a detailed mapping file example" do
+            validate do |args, options|
+              map_file = File.join(File.dirname(__FILE__), 'mapping_example.txt')
+              contents = ""
+              color = Choosy::Printing::Color.new
+              File.open(map_file, 'r') do |file|
+                file.each_line do |line|
+                  contents << if line =~ /^#/
+                                color.blue(line)
+                              elsif line =~ /^([\w-]+)(.*)/
+                                color.green($1) + $2 + "\n"
+                              else
+                                line
+                              end
+                end
+              end
+              
+              ctx.page(contents)
+              exit
+            end
+          end
+          help
+        end
+
+        arguments do
+          count 1
+          metaname 'MAPPING_FILE'
+
+          validate do |args, options|
+            if !File.file?(args[0])
+              die "the mapping file doesn't exist: #{args[0]}"
+            end
+          end
+        end
+      end
+    end
+
+    def check_subversion_availability
       begin
-        mapping_file = parse!(@args.dup)
-        check_perforce_availability
-        migrator = Migrator.new(mapping_file, options)
-
-        migrator.run!
-      rescue SystemExit => e
-        raise
-      rescue Perforce2Svn::ConfigurationError => e
-        STERR.puts "#{File.basename($0)}: #{e.message}"
-        exit 1
-      rescue Exception => e
-        STDERR.puts "#{File.basename($0)}: Unable to parse the command line flags"
-        STDERR.puts "Try '#{File.basename($0)} --help' for more information"
-        exit 1
+        require 'svn/core'
+      rescue LoadError
+        die "Unable to locate the native subversion bindings. Please install."
       end
-    end
-
-    def parse!(args)
-      parse_options(args)
-
-      if args.length != 1 
-        STDERR.puts "#{File.basename($0)}: Requires the mapping file as an argument"
-        exit 1
-      end
-
-      if not File.exists? args[0]
-        STDERR.puts "#{File.basename($0)}: The mapping file didn't exist: #{args[0]}"
-        exit 1
-      end
-
-      validate_options
-
-      args[0]
-    end
-
-    def parse_options(args)
-      @options ||= {}
-      @parsed_options ||= OptionParser.new do |opts|
-        opts.banner = "Usage: perforce2svn [OPTIONS] MAPPING_FILE"
-        opts.separator <<DESC
-Description:
-    This is a migration tool for migrating specific branches
-    in Perforce into Subversion.  It uses a mapping file to
-    define the branch mappings at the directory level.
-
-    Because these migrations can be quite complex, and involve
-    more sophisticated translations, this mapping file also 
-    allows for much more sophisticated operations on the 
-    Subversion repository after the migration, at least 
-    somewhat mitigating the difficulties in doing complex
-    transformations in a unified way.
-
-Mapping File:
-    The mapping file has an explicit syntax.  Each line
-    contains a directive and a set of arguments.  Each
-    argument is separated by a space, though that space
-    can be escaped with a '\\' character.  Lines can
-    have comments starting with the '#' character and 
-    they continue to the end of the line.  
-
-    Please use the '--mapping-help' command for more 
-    information.
-
-Options:
-DESC
-        opts.on('-r', '--repository REPO_PATH',
-                "The path to the repository.  It is required.") do |r|
-          options[:repository] = r
-        end
-        opts.on('-l', '--live-path LIVE_PATH',
-                "The path to files you want to add or update") do |l|
-          options[:live_path] = l
-        end
-        opts.on('-c', '--changes START_END',
-                "The revision range to import from.",
-                "Has the format START-END, where START >= 1",
-                "and END can be any number or HEAD") do |c|
-          options[:changes] = c
-        end
-        opts.separator ""
-        
-        opts.on('-u', '--skip-updates',
-                "Skip the 'update' actions in the configuration") do |u|
-          options[:skip_updates] = u
-        end
-        opts.on('-p', '--skip-perforce',
-                "Skip the perforce step, and run only the actions") do |p|
-          options[:skip_perforce] = p
-        end
-        opts.on('-a', '--analyze-only',
-                "Only analyzes your mapping files for possible errors,",
-                "but it does not attempt to run the migration.") do |a|
-          options[:analyze] = a
-        end
-        opts.separator ""
-
-        # Tail operations
-        opts.on_tail('-d', '--debug', 
-                     "Prints extra debug information") do |d|
-          options[:debug] = d
-        end
-        
-        opts.on_tail('-v', '--version',
-                     "Show the version information") do |v|
-          puts "perforce2svn version: #{Perforce2Svn::Version.to_s}"
-          exit
-        end
-
-        opts.on_tail('-m', '--mapping-help',
-                     "Shows a detailed mapping file as an example") do |m|
-          map_file = File.join(File.dirname(__FILE__), 'mapping_example.txt')
-          File.open(map_file, 'r').each do |line|
-            puts line
-          end
-          exit
-        end
-
-        opts.on_tail('-h', '--help',
-                     "Show this help message") do
-          puts opts
-          exit
-        end
-      end.parse!(args)
-    end
-
-    private
-    def validate_options
-      if options[:changes]
-        if options[:changes] =~ /(\d+)-(\d+|HEAD)/
-          start = $1.to_i
-          if start <= 0
-            raise Perforce2Svn::ConfigurationError, "--changes must begin with a revision number >= 1"
-          end
-          options[:change_start] = start
-
-          options[:change_end] = if $2 != 'HEAD'
-                                   last = $2.to_i
-                                   if last <= 0
-                                     raise Perforce2Svn::ConfigurationError, "--changes must end with a revision number >= 1"
-                                   end
-                                   last
-                                 else
-                                   -1
-                                 end
-        else
-          raise Perforce2Svn::ConfigurationError, "The --changes must specify a revision range in the format START-END"
-        end
-      end        
     end
 
     def check_perforce_availability
@@ -167,15 +128,12 @@ DESC
         if P4.identify =~ /\((\d+.\d+) API\)/
           maj, min = $1.split(/\./)
           if maj.to_i < 2009
-            STDERR.puts "Requires a P4 library version >= 2009.2"
-            exit 1
+            die "Requires a P4 library version >= 2009.2"
           end
         end
       rescue LoadError
-        STDERR.puts 'Unable to locate the P4 library'
-        exit 1
+        die 'Unable to locate the P4 library, please install p4ruby'
       end
     end
-
   end # CLI
 end

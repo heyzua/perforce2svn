@@ -3,8 +3,7 @@ require 'perforce2svn/errors'
 require 'perforce2svn/mapping/parser'
 require 'perforce2svn/mapping/analyzer'
 
-module Perfore2Svn
-
+module Perforce2Svn
   class Migrator
     include Logging
     
@@ -18,11 +17,10 @@ module Perfore2Svn
       @repository_path = options[:repository_path]
     end
 
-
     private
     def handle_mapping_file(migration_file, options)
       handle = File.open(migration_file, 'r')
-      parser = Perfore2Svn::Mapping::Parser.new(handle, options[:live_path])
+      parser = Perforce2Svn::Mapping::Parser.new(handle, options[:live_path])
       migration = parser.parse!
       
       if parser.parse_failed?
@@ -30,7 +28,7 @@ module Perfore2Svn
         exit 1
       end
 
-      analyzer = Perfore2Svn::Mapping::Analyzer.new(log, File.dirname(mapping_file))
+      analyzer = Perforce2Svn::Mapping::Analyzer.new(log, File.dirname(mapping_file))
       if !analyzer.check(migration.commands) || !analyzer.check(migration.branch_mappings)
         log.fatal "Analasys of migration file failed"
         exit 1
@@ -40,7 +38,5 @@ module Perfore2Svn
     ensure
       handle.close
     end
-
   end
-
 end

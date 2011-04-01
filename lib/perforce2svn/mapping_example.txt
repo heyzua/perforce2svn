@@ -1,101 +1,114 @@
-# This is an example mapping file for describing a migration from
-# Perforce into Subversion.
+# This file has been colored for your convenience. Comments are in blue; 
+# commands in green.
+#
+# This is an example mapping file for describing a migration from Perforce 
+# into Subversion. Blank lines are ignored, and everything after the 
+# '#' character in a line is ignored.
 
-# Blank lines are ignored, and everything after the '#' character
-# in a line is ignored.
-
-# There are several commands, the most central of which is:
+######################################################################
+# MAPPING FILE
+######################################################################
+#
+# There are several commands to be aware of, the most central of which is:
 migrate //depot/perforce/path  /trunk/absolute/path
 
-# As you can see, the migrate command takes 2 arguments: the
-# path to migrate from and the path to migrate to.  It cannot
-# handle individual files -- only directory structures.
-# Each part of the command is separated by spaces, and multiple
-# spaces are ignored.
+# As you can see, the migrate command takes 2 arguments: the path to migrate 
+# from and the path to migrate to.  It cannot handle individual files -- only 
+# directory structures. 
 #
-# Also, it should be noted that all commands don't necessarily
-# need to be on the same line.  If to continue a command on the
-# next line, you can add a '\' character to the end of the line.
-# So, the above command could have been written:
+# Multiple migrate commands can be given in this file, mapping from Perforce
+# path to Subversion path. This is useful when migrating both 'trunk' and 
+# 'branches' inside a repository when a standard layout has not been supplied,
+# or for more significant code refactorings.
+#
+# Each part of the command is separated by spaces, and multiple spaces are 
+# ignored.
+#
+# Commands don't necessarily need to be on the same line.  If to continue a 
+# command on the next line, you can add a '\' character to the end of the 
+# line. So, the above command could have been  written:
 migrate //depot/perforce/path \
         /trunk/absolute/path
 
-# If you have spaces in your path names, those spaces need to
-# be escaped in a similar manner:
+# If you have spaces in your path names, those spaces need to be escaped in a 
+# similar manner:
 migrate //depot/another\ path\ with/spaces \
         /to\ a\ path/with/spaces
 
+######################################################################
+# Directives
+#
 # There is a special directive that you need to be aware of:
 svn-prefix /project/trunk
 
-# This directive informs the mapping system that every SVN
-# path farther down in the file that don't start with a '/'
-# character will have this path prefix pre-pended.
+# This directive informs the mapping system that every SVN path farther down 
+# in the file that don't start with a '/' character will have this path prefix
+# pre-pended.
 #
-# Paths that start with a '/' are considered absolute and
-# will not be altered.
+# Paths that start with a '/' are considered absolute and will not be altered.
 #
-# Thus, the following commands are actually equivalent:
-migrate //depot/perforce/path \
-        /project/trunk/src/path
-migrate //depot/perforce/path \
-        src/path
+# Thus, given the previous directive, the following commands are now 
+# equivalent:
+migrate //depot/perforce/path /project/trunk/src/path
+migrate //depot/perforce/path                src/path
 
-# This feature is a convenience so that you don't have to type
-# out the full path each time, which can become a hassle in
-# a big migration.
+# This feature is a convenience so that you don't have to type out the full 
+# path each time, which can become a hassle in a big migration.
 #
-# Note that you can call the 'svn-prefix' directive multiple
-# times, and each relative SVN path that follows will
-# have the directly preceeding directive take precedence.
+# Note that you can call the 'svn-prefix' directive multiple times, and each 
+# relative SVN path that follows will have the directly preceeding directive 
+# take precedence.
 
-
-# The 'migrate' command is obviously the most essential, but
-# this tool provides several other convenience commands to help
-# you migrate more complex directory structures.
+######################################################################
+# Additional Commands
 #
-# Each of these commands is pretty much the same as their
-# SVN counterparts (with a few noted exceptions).
+# The 'migrate' command is obviously the most essential, but this tool 
+# provides several other convenience commands to help you migrate more 
+# complex directory structures.
+#
+# Each of these commands is pretty much the same as their SVN counterparts 
+# (with a few noted exceptions).
 
-# The 'move' command moves paths internally within SVN after
-# the migration:
+# The 'move' command moves paths internally within SVN after the migration:
 move original/svn/path.txt \
      new/svn/path.txt
 
-# The 'remove' command deletes paths internally
+# The 'remove' command deletes paths internally after the migration:
 remove some/perforce/file/thats/no/longer/needed.sh
 
-# The 'copy' command copies SVN paths, retaining their history
-# within the tree
+# The 'copy' command copies SVN paths, retaining their history within the 
+# tree after a migration
 copy /some/absolute/file.txt \
      to/another/needed/location.txt
 
-# The 'mkdir' command creates empty directories.  By default,
-# directory structures are created for you when you copy
-# or move files, but this is occasionally useful when you
-# want to set up the standard Subversion layout.
+# The 'mkdir' command creates empty directories.  By default, directory 
+# structures are created for you when you copy or move files, but this is 
+# occasionally useful when you want to set up the standard Subversion layout.
 mkdir /project/branches
 mkdir /project/tags
 
-# The 'add' command is a bit weird, as it will look at the
-# 'live' sources that you have edited externally and passed
-# in via the '--live-path' flag.  This migration tool will
-# add the sources listed below that live path to the SVN
-# repository.
+# The 'add' command is a bit weird, as it will look at the 'live' sources that
+# you have edited externally and passed in via the '--live-path' flag.  
+# This migration tool will add the sources listed below that live path to the 
+# SVN repository.
 #
-# Obviously, this is an optional command, and if you don't
-# need it, you don't need to supply the '--live-path' flag.
-# If you have this directive, and the '--live-path' flag
-# isn't present, the migration will fail and ask you for the 
+# Obviously, this is an optional command, and if you don't need it, you don't 
+# need to supply the '--live-path' flag. If you have this directive, and the 
+# '--live-path' flag isn't present, the migration will fail and ask you for the 
 # live path
+#
+# The use case for this option lies in that not all migrations happen at once.
+# In particularly large refactorings, it may be necessary to update certain 
+# files that rely upon the new source control layout. This is a facility for
+# adding those files transparently at the end of a migration, so that you don't 
+# have to add them manually. The mapping analysis tool will flag if any addition
+# doesn't exist before the migration continues.
 add some/live/path/pom.xml
 
-# Finally, there is the 'update' command that works very
-# much like the 'add' command, but for files that already
-# exist in the repository.
+# Finally, there is the 'update' command that works very much like the 'add' 
+# command, but for files that already exist in the repository.
 #
-# You can skip these updates with the '--skip-updates'
-# flag on the command line.  That is occasionally useful
-# if you want to debug or manually push files after initial
-# testing.
+# You can skip these updates with the '--skip-updates' flag on the command 
+# line.  That is occasionally useful if you want to debug or manually push 
+# files after initial testing.
 update some/path/that/exists/in/live/and/in/svn/Klass.java

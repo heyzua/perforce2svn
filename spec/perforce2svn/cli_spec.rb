@@ -3,16 +3,17 @@ require 'perforce2svn/errors'
 require 'spec_helper'
 
 module Perforce2Svn
-
   module CLIHelper
     def parse(*args)
-      cli = CLI.new([])
-      cli.parse_options(args)
-      cli.options
+      cli = CLI.new
+      args << '--repository'
+      args << 'here'
+      args << __FILE__
+      cli.parse!(args, true)
     end
   end
 
-  describe 'Command Line Interface' do
+  describe CLI do
     include CLIHelper
 
     it "should be able to parse the debug flag correctly" do
@@ -20,11 +21,11 @@ module Perforce2Svn
     end
 
     it "should be able to retrieve the repository path" do
-      parse('-r', 'some/path')[:repository].should eql('some/path')
+      parse('-r', 'some/path')[:repository].should eql('here')
     end
 
     it "should be able to parse the live path" do
-      parse('-l', 'live/path')[:live_path].should eql('live/path')
+      parse('-l', '/')[:live_path].should eql('/')
     end
 
     it "should be able to skip updates" do
@@ -36,14 +37,25 @@ module Perforce2Svn
     end
 
     it "should be able to run the analysis only" do
-      parse('-a')[:analyze].should be(true)
+      parse('-a')[:analyze_only].should be(true)
     end
 
-    describe "validation activity" do
+    describe "when validating the count format" do
       it "should fail when the start revision is less than 1" do
-        attempting_to { parse('-c', '0-4') }.should raise_error(Perforce2Svn::ConfigurationError, /change/)
+        attempting_to { 
+          parse('-c', '0:4') 
+        }.should raise_error(Choosy::ValidationError, /--changes/)
+      end
+
+      it "should set -1 when given HEAD" do
+        parse('-c', '1:HEAD')[:change_end].should eql(-1)
+      end
+
+      it "should fail when the end revision < 1" do
+        attempting_to {
+          parse('-c', '1:0')
+        }.should raise_error(Choosy::ValidationError, /end with/)
       end
     end
-
   end
 end

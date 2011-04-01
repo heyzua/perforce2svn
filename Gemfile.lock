@@ -1,0 +1,38 @@
+PATH
+  remote: .
+  specs:
+    perforce2svn (0)
+      choosy (>= 0.4.8)
+      log4r (>= 1.1.7)
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    ZenTest (4.5.0)
+    autotest (4.4.6)
+      ZenTest (>= 4.4.1)
+    autotest-notification (2.3.1)
+      autotest (~> 4.3)
+    choosy (0.4.8)
+    diff-lcs (1.1.2)
+    log4r (1.1.9)
+    mocha (0.9.12)
+    rspec (2.5.0)
+      rspec-core (~> 2.5.0)
+      rspec-expectations (~> 2.5.0)
+      rspec-mocks (~> 2.5.0)
+    rspec-core (2.5.1)
+    rspec-expectations (2.5.0)
+      diff-lcs (~> 1.1.2)
+    rspec-mocks (2.5.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  ZenTest
+  autotest
+  autotest-notification
+  mocha
+  perforce2svn!
+  rspec
