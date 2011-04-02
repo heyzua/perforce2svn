@@ -34,7 +34,7 @@ module Perforce2Svn::Subversion
 
     def add(path, content_stream, binary = false)
       if path.nil? or path == ''
-        raise Perforce2Svn::SvnTransactionError, "The subversion path wase empty"
+        raise Perforce2Svn::SvnTransactionError, "The subversion path was empty"
       end
 
       if not content_stream.respond_to? :readpartial
