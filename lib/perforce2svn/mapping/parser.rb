@@ -1,160 +1,137 @@
-require 'perforce2svn/mapping/lexer'
 require 'perforce2svn/logging'
+require 'perforce2svn/mapping/lexer'
 require 'perforce2svn/mapping/commands'
 
 module Perforce2Svn::Mapping
-  class MappingConfiguration
-    attr_reader :branch_mappings, :commands
-
-    def initialize
-      @branch_mappings = []
-      @commands = []
-    end
-  end
-
   class Parser
     include Perforce2Svn::Logging
 
-    attr_reader :mapping
+    def parse!(content, live_path)
+      raise ArgumentError, "The content must respond to 'readlines'" unless content.respond_to? :readlines
 
-    def initialize(content, live_path)
-      if not content.respond_to? :readlines
-        raise ArgumentError, "The content must respond to 'readlines'"
+      if !live_path.nil? && live_path !~ /\/$/
+        live_path << '/'
       end
 
-      @lexer = Lexer.new(content)
-      @live_path = live_path
-      
-      if not @live_path.nil? and not @live_path =~ /\/$/
-        @live_path << '/'
-      end
-    end
+      ctx = {
+        :failed => false, 
+        :commands => [], 
+        :mappings => [],
+        :svn_prefix => '',
+        :live_path => live_path
+      }
 
-    def parse!
-      parse_content
-      if parse_failed?
-        raise MappingParserError, "Unable to parse mapping file"
+      Lexer.new(content).each do |tok|
+        handle(tok, ctx)
       end
-      @mapping
-    end
-
-    def parse_content
-      @mapping = MappingConfiguration.new
-      @failed = false
-      @lexer.each do |tok|
-        handle(tok)
-      end
-    end
-
-    def parse_failed?
-      @failed
+      ctx
     end
 
     private
-    def handle(tok)
+    def handle(tok, ctx)
       action = tok[0].gsub(/-/, '_')
       if private_methods.include? action
-        send(action, tok)
+        send(action, tok, ctx)
       else
         log.error "(line: #{tok.line}) Unknown directive: '#{tok[0]}'"
-        @failed = true
+        ctx[:failed] = true
       end
     end
 
-    def add(tok)
-      return if not args_ok?(1, tok)
-      @mapping.commands << Add.new(tok, to_svn(tok, 1), to_live(tok, 1))
+    def add(tok, ctx)
+      return if not args_ok?(1, tok, ctx)
+      ctx[:commands] << Add.new(tok, to_svn(tok, 1, ctx), to_live(tok, 1, ctx))
     end
       
-    def copy(tok)
-      return if not args_ok?(2, tok)
-      @mapping.commands << Copy.new(tok, to_svn(tok, 1), to_svn(tok, 2))
+    def copy(tok, ctx)
+      return if not args_ok?(2, tok, ctx)
+      ctx[:commands] << Copy.new(tok, to_svn(tok, 1, ctx), to_svn(tok, 2, ctx))
     end
 
-    def remove(tok)
-      return if not args_ok?(1, tok)
-      @mapping.commands << Remove.new(tok, to_svn(tok, 1))
+    def remove(tok, ctx)
+      return if not args_ok?(1, tok, ctx)
+      ctx[:commands] << Remove.new(tok, to_svn(tok, 1, ctx))
     end
 
-    def mkdir(tok)
-      return if not args_ok?(1, tok)
-      @mapping.commands << Mkdir.new(tok, to_svn(tok, 1))
+    def mkdir(tok, ctx)
+      return if not args_ok?(1, tok, ctx)
+      ctx[:commands] << Mkdir.new(tok, to_svn(tok, 1, ctx))
     end
 
-    def move(tok)
-      return if not args_ok?(2, tok)
-      @mapping.commands << Move.new(tok, to_svn(tok, 1), to_svn(tok, 2))
+    def move(tok, ctx)
+      return if not args_ok?(2, tok, ctx)
+      ctx[:commands] << Move.new(tok, to_svn(tok, 1, ctx), to_svn(tok, 2, ctx))
     end
 
-    def update(tok)
-      return if not args_ok?(1, tok)
-      @mapping.commands << Update.new(tok, to_svn(tok, 1), to_live(tok, 1))
+    def update(tok, ctx)
+      return if not args_ok?(1, tok, ctx)
+      ctx[:commands] << Update.new(tok, to_svn(tok, 1, ctx), to_live(tok, 1, ctx))
     end
 
-    def migrate(tok)
-      return if not args_ok?(2, tok)
+    def migrate(tok, ctx)
+      return if not args_ok?(2, tok, ctx)
       
       p4_path = tok[1]
       p4_path << '/' if not p4_path[-1].chr == '/'
-      svn_path = to_svn(tok, 2)
+      svn_path = to_svn(tok, 2, ctx)
       svn_path << '/' if not svn_path[-1].chr == '/'
 
-      if not p4_path =~ %r|^//([^/]+/?)*$|
+      if p4_path !~ %r|^//([^/]+/?)*$|
         log.error "(line #{tok.line}) Perforce path was malformed: '#{p4_path}'"
-        @failed = true
+        ctx[:failed] = true
       end
 
-      if not svn_path =~ %r|^/([^/]+/?)*$|
+      if svn_path !~ %r|^/([^/]+/?)*$|
         log.error "(line #{tok.line}) Subversion path was malformed: '#{svn_path}'"
-        @failed = true
+        ctx[:failed] = true
       end
 
-      @mapping.branch_mappings << BranchMapping.new(tok, p4_path, svn_path)
+      ctx[:mappings] << BranchMapping.new(tok, p4_path, svn_path)
     end
 
-    def svn_prefix(tok)
-      return if not args_ok?(1, tok)
+    def svn_prefix(tok, ctx)
+      return if not args_ok?(1, tok, ctx)
       if not tok[1] =~ /^\//
         log.error "(line: #{tok.line}) 'svn-prefix' directive must start with a '/'"
-        @failed = true
+        ctx[:failed] = true
       else
-        @svn_prefix = tok[1]
-        if not @svn_prefix =~ /\/$/
-          @svn_prefix << '/'
+        ctx[:svn_prefix] = svn_prefix = tok[1]
+        if svn_prefix !~ /\/$/
+          ctx[:svn_prefix] << '/'
         end
       end
     end
 
-    def args_ok?(required_count, tok)
+    def args_ok?(required_count, tok, ctx)
       if tok.arg_count != required_count
         log.error "(line: #{tok.line}) '#{tok[0]}' requires #{required_count} argument(s), but found #{tok.arg_count}"
-        @failed = true
+        ctx[:failed] = true
         return false
       end
       return true
     end
 
-    def to_svn(tok, index)
-      if @svn_prefix.nil? and not tok[index] =~ /^\//
+    def to_svn(tok, index, ctx)
+      if ctx[:svn_prefix].empty? && tok[index] !~ /^\//
         log.error "(line: #{tok.line}) No 'svn-prefix' defined, but a relative SVN path was used"
-        @failed = true
+        ctx[:failed] = true
         nil
       else
-        "#{@svn_prefix}#{tok[index]}"
+        "#{ctx[:svn_prefix]}#{tok[index]}"
       end
     end
 
-    def to_live(tok, index)
-      if @live_path.nil?
+    def to_live(tok, index, ctx)
+      if ctx[:live_path].nil?
         log.error "(line: #{tok.line}) The command '#{tok[0]}' requires a live path, but none was given."
-        @failed = true
+        ctx[:failed] = true
         nil
       else
         path = tok[index]
         if path =~ /^\//
-          "#{@live_path.chomp('/')}#{path}"
+          "#{ctx[:live_path].chomp('/')}#{path}"
         else
-          "#{@live_path.chomp('/')}#{@svn_prefix}#{path}"
+          "#{ctx[:live_path].chomp('/')}#{ctx[:svn_prefix]}#{path}"
         end
       end
     end

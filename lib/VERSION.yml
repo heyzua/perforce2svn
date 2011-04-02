@@ -1,5 +1,6 @@
-version:
-  major: 0
-  minor: 1
+--- 
+date: 01/04/2011
+version: 
   tiny: 0
-date: today
+  major: 0
+  minor: 7
