@@ -65,13 +65,10 @@ module Perforce2Svn::Subversion
       }.should raise_error(Svn::Error::FsNoSuchRevision, /10/)
     end
 
-    it "should be able to retrieve a property"
-=begin
-do
-      write('/a', 'contents')
-      @repo.prop_get('/a', Svn::Core::PROP_REVISION_AUTHOR).should eql('nick')
+    it "should be able to retrieve a property" do
+      write('/a', 'contents', true)
+      @repo.prop_get('/a', 'svn:mime-type', 1).should eql('application/octet-stream')
     end
-=end
 
     it "should be able to list child directories" do
       write('/a', 'contents')

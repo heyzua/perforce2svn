@@ -61,8 +61,8 @@ module Perforce2Svn
     end
 
     def execute_commands
-      @svnRepo.transaction(@mapping_file.author, Time.now, @mapping_file.message) do |txn|
-        @mapping_file.commands.each do |command|
+      @svnRepo.transaction(@migration_file.author, Time.now, @migration_file.message) do |txn|
+        @migration_file.commands.each do |command|
           command.execute!(txn)
         end
       end

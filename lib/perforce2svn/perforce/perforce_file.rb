@@ -64,7 +64,7 @@ module Perforce2Svn::Perforce
         end
 
         if !File.file? tmpfile
-          raise Perforce2Svn::P4Error, "Unable to retrieve the file contents: #{src}@#{revision}"
+          raise Perforce2Svn::P4Error, "Unable to retrieve the file contents: #{src}\##{revision}"
         end
 
         mode = binary? ? 'rb' : 'r'

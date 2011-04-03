@@ -45,7 +45,7 @@ module Perforce2Svn::Subversion
       begin
         # Yield the transaction
         txn = repository.transaction_for_commit(props)
-        svn_txn = SvnTransaction.new(txn)
+        svn_txn = SvnTransaction.new(txn, repository.fs.root)
         yield svn_txn
         # Finalize the transaction
         svn_txn.send(:finalize!)

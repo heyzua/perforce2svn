@@ -87,7 +87,26 @@ module Perforce2Svn::Subversion
       end
     end
 
-    it "will be able to copy paths"
-    it "will be able to move paths"
+    it "will be able to copy paths" do
+      write('/a.txt', 'content')
+      @repo.transaction('gabe', Time.now, 'r') do |txn|
+        txn.copy('/a.txt', '/b.txt')
+      end
+
+      @repo.exists?('/a.txt').should be_true
+      @repo.exists?('/b.txt').should be_true
+      @repo.pull_contents('/b.txt').should eql('content')
+    end
+
+    it "will be able to move paths" do
+      write('/a.txt', 'content')
+      @repo.transaction('gabe', Time.now, 'r') do |txn|
+        txn.move('/a.txt', '/b.txt')
+      end
+
+      @repo.exists?('/a.txt').should be_false
+      @repo.exists?('/b.txt').should be_true
+      @repo.pull_contents('/b.txt').should eql('content')
+    end
   end
 end

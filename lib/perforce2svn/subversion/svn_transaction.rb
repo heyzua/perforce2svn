@@ -9,10 +9,11 @@ module Perforce2Svn::Subversion
 
     SVN_MIME_TYPE = 'svn:mime-type'
     BINARY_MIME_TYPE = 'application/octet-stream'
-    BLOCK_SIZE = 8184 # TODO: Maybe make this configurable?
+    BLOCK_SIZE = 16384 # TODO: Maybe make this configurable?
 
-    def initialize(txn)
+    def initialize(txn, root)
       @txn = txn
+      @root = root
       @possible_deletions = Set.new
     end
 
@@ -72,11 +73,16 @@ module Perforce2Svn::Subversion
     end
 
     def copy(src_path, dest_path)
-      # TODO
+      if exists? src_path
+        @txn.root.copy(dest_path, @root, src_path)
+      else
+        log.warn "No path to copy from: #{src_path} -> #{dest_path}"
+      end
     end
 
     def move(src_path, dest_path)
-      # TODO
+      copy(src_path, dest_path)
+      delete(src_path)
     end
 
     def delete(path)

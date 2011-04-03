@@ -10,6 +10,7 @@ module Perforce2Svn::Mapping
     def parse!(content, live_path)
       raise ArgumentError, "The content must respond to 'readlines'" unless content.respond_to? :readlines
 
+      live_path = live_path.dup
       if !live_path.nil? && live_path !~ /\/$/
         live_path << '/'
       end
@@ -35,7 +36,7 @@ module Perforce2Svn::Mapping
       if private_methods.include? tok.name
         send(tok.name, tok, ctx)
       else
-        log.error "(line: #{tok.line_number}) Unknown directive: '#{tok[0]}'"
+        log.error "(line: #{tok.line_number}) Unknown directive: '#{tok.name}'"
         ctx[:failed] = true
       end
     end

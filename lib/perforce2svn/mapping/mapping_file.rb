@@ -46,7 +46,7 @@ module Perforce2Svn::Mapping
       end
 
       if migration[:failed]
-        Terminal.die "Parsing the mapping file failed"
+        Choosy::Terminal.die "Parsing the mapping file failed"
       end
 
       @mappings = migration[:mappings]
@@ -58,7 +58,7 @@ module Perforce2Svn::Mapping
     def analyze(mapping_file)
       analyzer = Analyzer.new(File.dirname(mapping_file))
       if !analyzer.check(@commands) || !analyzer.check(@mappings)
-        Terminal.die "Analysis of mapping file failed"
+        Choosy::Terminal.die "Analysis of mapping file failed"
       end
     end
   end
