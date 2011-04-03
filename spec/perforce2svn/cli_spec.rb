@@ -29,7 +29,7 @@ module Perforce2Svn
     end
 
     it "should be able to skip updates" do
-      parse('--skip-updates')[:skip_updates].should be(true)
+      parse('--skip-commands')[:skip_commands].should be(true)
     end
 
     it "should be able to skip perforce" do

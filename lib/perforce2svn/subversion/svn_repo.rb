@@ -1,11 +1,10 @@
-require 'open3'
+require 'perforce2svn/logging'
+require 'perforce2svn/errors'
+require 'perforce2svn/subversion/svn_transaction'
 require 'svn/repos'
 require 'svn/core'
 require 'fileutils'
 require 'iconv'
-require 'perforce2svn/logging'
-require 'perforce2svn/errors'
-require 'perforce2svn/subversion/svn_transaction'
 
 module Perforce2Svn::Subversion
   class SvnRepo
@@ -95,57 +94,37 @@ module Perforce2Svn::Subversion
     # Retrieves the current contents of the file 
     # in the SVN repository at the given path.
     # You can optionally supply the revision number
+    #
+    # Raises a Svn::Error::FsNotFound if the specific file path cannot
+    # be found.
+    #
+    # Raises a Svn::Error::FsNoSuchRevision if the revision cannot 
+    # be found.
     def pull_contents(file_path, revision = nil)
-      begin
-        repository.fs.root(revision).file_contents(file_path){|f| f.read}
-      rescue Svn::Error::FsNotFound => e
-        raise Perforce2Svn::SvnPathNotFoundError, e.message
-      rescue Exception
-        raise Perforce2Svn::SvnNoSuchRevisionError, "SVN: Revision #{revision} does not exist."
-      end
+      repository.fs.root(revision).file_contents(file_path){|f| f.read}
     end
 
     # Checks that a path exists at a revision
     def exists?(path, revision = nil)
-      begin
-        return repository.fs.root(revision).check_path(path) != 0
-      rescue Exception
-        raise Perforce2Svn::SvnNoSuchRevisionError, "SVN: revision #{revision} does not exist."
-      end
+      repository.fs.root(revision).check_path(path) != 0
     end
 
     # Retrieve the commit log for a given revision number
     def commit_log(revision)
-      begin
-        author = repository.prop(Svn::Core::PROP_REVISION_AUTHOR, revision)
-        date = repository.prop(Svn::Core::PROP_REVISION_DATE, revision)
-        commit_log = repository.prop(Svn::Core::PROP_REVISION_LOG, revision)
-        timestamp = Time.parse_svn_format(date)
+      author = repository.prop(Svn::Core::PROP_REVISION_AUTHOR, revision)
+      date = repository.prop(Svn::Core::PROP_REVISION_DATE, revision)
+      commit_log = repository.prop(Svn::Core::PROP_REVISION_LOG, revision)
+      timestamp = Time.parse_svn_format(date)
         
-        SvnCommitInfo.new(revision, author, timestamp, commit_log)
-      rescue Exception
-        raise Perforce2Svn::SvnNoSuchRevisionError.new("SVN: Revision #{revision} does not exist")
-      end
+      SvnCommitInfo.new(revision, author, timestamp, commit_log)
     end
 
     def prop_get(path, prop_name, revision = nil)
-      begin
-        repository.fs.root(revision).node_prop(path, prop_name)
-      rescue Svn::Error::FsNoSuchRevision => e
-        raise Perforce2Svn::SvnNoSuchRevisionError.new("SVN: Revision #{revision} does not exist")
-      rescue Svn::Error::FsNotFound => e
-        raise Perforce2Svn::SvnPathNotFoundError, e.message
-      end
+      repository.fs.root(revision).node_prop(path, prop_name)
     end
 
     def children(path, revision = nil)
-      begin
-        repository.fs.root(revision).dir_entries(path).keys
-      rescue Svn::Error::FsNoSuchRevision => e
-        raise Perforce2Svn::SvnNoSuchRevisionError.new("SVN: Revision #{revision} does not exist")
-      rescue Svn::Error::FsNotFound => e
-        raise Perforce2Svn::SvnPathNotFoundError, e.message
-      end
+      repository.fs.root(revision).dir_entries(path).keys
     end
 
     private
@@ -155,6 +134,7 @@ module Perforce2Svn::Subversion
 
     # There can be weird stuff in the log messages, so
     # we make sure that it doesn't bork when committing
+    # FIXME: This is replicated in the PerforceCommit, refactor!
     def sanitize(text)
       @sanitizer ||= Iconv.new('UTF-8//IGNORE/TRANSLIT', 'UTF-8')
       @sanitizer.iconv(text.gsub(/\r/, ''))

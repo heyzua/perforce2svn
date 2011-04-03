@@ -28,38 +28,33 @@ module Perforce2Svn
           migrator.run!
         end
 
+        summary 'Migrates Perforce repository files into Subversion'
+
         section 'DESCRIPTION' do
           para 'This is a migration tool for migrating specific branches in Perforce into Subversion.  It uses a mapping file to define the branch mappings at the directory level.'
           para 'Because these migrations can be quite complex, and involve more sophisticated translations, this mapping file also allows for much more sophisticated operations on the Subversion repository after the migration, at least somewhat mitigating the difficulties in doing complex transformations in a unified way.'
           para 'This utility assumes that you have already logged into Perforce and that the P4USER and P4PORT environment variables are set correctly.'
         end
 
-        section 'MAPPING FILE' do
-          para "Rather than define all of the file path mappings between the old Perforce repository and the new Subversion repository, this tool requires you to define a mapping file."
-          para "This file contains all of the relevant commands for migrating a complicated set of paths and branches from Perforce into Subversion."
-          para "The mapping file has an explicit syntax.  Each line contains a directive and a set of arguments.  Each argument is separated by a space, though that space can be escaped with a '\\' character.  Lines can have comments starting with the '#' character and they continue to the end of the line."
-          para "Please use the '--mapping-help' command for more detailed information."
-        end
-
         section 'OPTIONS' do
           string :repository, "The path to the SVN repository. Required." do
             required
-            depends_on :mapping_file
+            depends_on :mapping_file # So that the mapping file will get printed and exit before this option gets validated
           end
-          string :live_path, "The path to the files you want to add or update" do
+          string :live_path, "The path to the files you want to add or update." do
             validate do |args, options|
               if !File.directory?(options[:live_path])
                 die "The --live-path must be a directory: #{options[:live_path]}"
               end
             end
           end
-          string :changes, "The revision range to import from. This has the format START:END where START >= 1 and END can be any number or 'HEAD'" do
+          string :changes, "The revision range to import from. This has the format START:END where START >= 1 and END can be any number or 'HEAD'." do
             validate do |args, options|
               options[:changes] = VersionRange.build(options[:changes])
             end
           end
-          boolean :skip_updates, "Skip the 'update' actions in the configuration", :short => '-u'
-          boolean :skip_perforce, "Skip the perforce step, and run only the actions", :short => '-p'
+          boolean :skip_commands, "Skip the embedded commands in the configuration that are run after the perforce migration.", :short => '-u'
+          boolean :skip_perforce, "Skip the perforce migration, and run only the embedded commands.", :short => '-p'
           boolean :analyze_only, "Only analyzes your mapping files for possible errors, but does not attempt to run the migration."
 
           # Informative
@@ -75,11 +70,18 @@ module Perforce2Svn
           help
         end
 
+        section 'FILES' do
+          para "Rather than define all of the file path mappings between the old Perforce repository and the new Subversion repository, this tool requires you to define a mapping file."
+          para "This file contains all of the relevant commands for migrating a complicated set of paths and branches from Perforce into Subversion."
+          para "The mapping file has an explicit syntax.  Each line contains a directive and a set of arguments.  Each argument is separated by a space, though that space can be escaped with a '\\' character.  Lines can have comments starting with the '#' character and they continue to the end of the line."
+          para "Please use the '--mapping-help' command for more detailed information."
+        end
+
         section 'ENVIRONMENT' do
-          para "P4USER   - The username used to connect to the Perforce server"
-          para "P4PORT   - The Perforce server name"
-          para "svnadmin - This tool must be installed"
-          para "p4       - The Perforce command line utility must be installed"
+          para "P4USER   - The username used to connect to the Perforce server."
+          para "P4PORT   - The Perforce server name."
+          para "svnadmin - This tool must be installed."
+          para "p4       - The Perforce command line utility must be installed."
         end
 
         section 'BUGS AND LIMITATIONS' do

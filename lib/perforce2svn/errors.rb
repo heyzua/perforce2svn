@@ -6,8 +6,6 @@ module Perforce2Svn
   ConfigurationError = Class.new(Perforce2Svn::Error)
 
   # Subversion errors
-  SvnPathNotFoundError = Class.new(Perforce2Svn::Error)
-  SvnNoSuchRevisionError = Class.new(Perforce2Svn::Error)
   SvnTransactionError = Class.new(Perforce2Svn::Error)
 
   # Perforce

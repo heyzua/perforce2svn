@@ -19,7 +19,7 @@ module CommitHelper
   def write(path, text, binary = false)
     @repo.transaction('gabe', Time.now, "Committing to : #{path}") do |txn|
       contents = StringIO.new(text)
-      txn.add(path, contents, binary)
+      txn.update(path, contents, binary)
     end
   end
   def delete(path)

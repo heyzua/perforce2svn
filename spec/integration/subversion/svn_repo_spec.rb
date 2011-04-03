@@ -34,14 +34,14 @@ module Perforce2Svn::Subversion
     it "should fail when the file contents don't exist" do
       attempting {
         @repo.pull_contents('/a')
-      }.should raise_error(Perforce2Svn::SvnPathNotFoundError, /revision 0/)
+      }.should raise_error(Svn::Error::FsNotFound, /revision 0/)
     end
 
     it "should fail when a file exists but not at a given revision" do
       write('/a', 'content')
       attempting {
         @repo.pull_contents('/a', 10)
-      }.should raise_error(Perforce2Svn::SvnNoSuchRevisionError, /10/)
+      }.should raise_error(Svn::Error::FsNoSuchRevision, /10/)
     end
 
     it "should be able to determine when a path doesn't exist" do
@@ -62,7 +62,7 @@ module Perforce2Svn::Subversion
     it "should be fail to retrieve the commit log on a bad revision" do
       attempting {
         @repo.commit_log(10)
-      }.should raise_error(Perforce2Svn::SvnNoSuchRevisionError, /10/)
+      }.should raise_error(Svn::Error::FsNoSuchRevision, /10/)
     end
 
     it "should be able to retrieve a property"
@@ -83,14 +83,14 @@ do
       write('/a', 'contents')
       attempting {
         @repo.prop_get('/b', Svn::Core::PROP_REVISION_LOG)
-      }.should raise_error(Perforce2Svn::SvnPathNotFoundError, /\/b/)
+      }.should raise_error(Svn::Error::FsNotFound, /\/b/)
     end
 
     it "should fail to retrieve properties on a bad revision" do
       write('/a', 'contents')
       attempting {
         @repo.prop_get('/a', Svn::Core::PROP_REVISION_AUTHOR, 5)
-      }.should raise_error(Perforce2Svn::SvnNoSuchRevisionError, /5/)
+      }.should raise_error(Svn::Error::FsNoSuchRevision, /5/)
     end
   end
 end

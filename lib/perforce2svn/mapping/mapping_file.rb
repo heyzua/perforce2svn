@@ -26,10 +26,10 @@ module Perforce2Svn::Mapping
       contents
     end
 
-    attr_reader :mappings, :commands
+    attr_reader :mappings, :commands, :author, :message
 
     def initialize(mapping_file, options)
-      @mappings, @commands = load_mapping_file(mapping_file, options)
+      load_mapping_file(mapping_file, options)
       analyze(mapping_file)
 
       if options[:analysis_only]
@@ -49,7 +49,10 @@ module Perforce2Svn::Mapping
         Terminal.die "Parsing the mapping file failed"
       end
 
-      migration[:mappings], migration[:commands]
+      @mappings = migration[:mappings]
+      @commands = migration[:commands]
+      @author = migration[:author]
+      @message = migration[:message]
     end
 
     def analyze(mapping_file)

@@ -18,13 +18,16 @@ module Perforce2Svn
       @svnRepo = Perforce2Svn::Subversion::SvnRepo.new(options[:repository_path])
       @command_builder = Perforce::CommandBuilder.new(@migration_file.mappings)
       @version_range = options[:changes]
+      @options = options
     end
 
     def run!
       begin
         @command_builder.commits_in(@version_range) do |commit|
-# TODO: 
-        end
+          migrate_commit(commit)
+        end unless @options[:skip_perforce]
+
+        execute_commands unless @options[:skip_commands]
       rescue SystemExit
         raise
       rescue Interrupt
@@ -33,6 +36,32 @@ module Perforce2Svn
       rescue Exception => e
         log.error e
         die "Unable to complete migration."
+      end
+    end
+
+    private
+    def migrate_commit(commit)
+      commit.log!
+      @svnRepo.transaction(commit.author, commit.time, commit.log) do |txn|
+        commit.files.each do |file|
+          if file.deleted?
+            txn.delete(file.dest)
+          elsif file.symlink?
+            txn.symlink(file.dest, file.symlink_target)
+          else
+            file.streamed_contents do |fstream|
+              txn.update(file.dest, fstream, file.binary?)
+            end
+          end
+        end
+      end
+    end
+
+    def execute_commands
+      @svnRepo.transaction(@mapping_file.author, Time.now, @mapping_file.message) do |txn|
+        @mapping_file.commands.each do |command|
+          command.execute!(txn)
+        end
       end
     end
   end

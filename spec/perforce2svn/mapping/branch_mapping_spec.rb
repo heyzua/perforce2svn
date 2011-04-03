@@ -1,10 +1,13 @@
 require 'spec_helpers'
-require 'perforce2svn/mapping/commands'
+require 'perforce2svn/mapping/branch_mapping'
+require 'ostruct'
 
 module Perforce2Svn::Mapping
   module BranchMappingHelper
     def map(p4, svn)
-      BranchMapping.new(Token.new(nil, 1), p4, svn)
+      tok = OpenStruct.new
+      tok.line_number = 1
+      BranchMapping.new(tok, p4, svn)
     end
   end
 

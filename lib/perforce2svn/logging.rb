@@ -7,18 +7,17 @@ module Perforce2Svn
   module Logging
     @@log = nil
 
-    def Logging.configure(debug)
+    def self.configure(debug)
       if not @@log.nil?
         @@log = Log4r::Logger.new 'perforce2svn'
         @@log.outputters = Log4r::Outputter.stderr
-        @@log.level = Log4r::WARN
-        Log4r::Outputter.stderr.formatter = Log4r::PatternFormatter.new(:pattern => "[%l]\t%M")
-        
         @@log.level = debug ? Log4r::DEBUG : Log4r::INFO
+        Log4r::Outputter.stderr.formatter = Log4r::PatternFormatter.new(:pattern => "[%l]\t%M")
       end
+      @@log
     end
     
-    def Logging.log
+    def self.log
       @@log ||= Log4r::Logger.root
     end
     

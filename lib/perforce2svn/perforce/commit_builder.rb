@@ -7,6 +7,8 @@ require 'svn/core'
 module Perforce2Svn::Perforce
   # The standard commit message
   class PerforceCommit
+    include Perforce2Svn::Logging
+
     attr_reader :author, :log, :time, :revision, :files
     
     def initialize(revision, author, log, time, files)
@@ -15,6 +17,12 @@ module Perforce2Svn::Perforce
       @log = log
       @time = time
       @files = files
+    end
+
+    def log!
+      to_s.each_line do |line|
+        log.info line
+      end
     end
 
     def to_s

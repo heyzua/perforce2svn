@@ -1,18 +1,10 @@
+require 'perforce2svn/mapping/operation'
 
 module Perforce2Svn::Mapping
-  class Command
-    attr_reader :line_number
-    def initialize(tok)
-      @line_number = tok.line
-    end
-  end
-
-  class Add < Command
-    attr_reader :svn_path, :live_path
-    def initialize(tok, svn_path, live_path)
-      super(tok)
-      @svn_path = svn_path
-      @live_path = live_path
+  class Command < Operation
+    # Must be implemented by subclasses
+    def execute!(svn_txn)
+      raise Exception, "Not implemented"
     end
   end
 
@@ -23,6 +15,10 @@ module Perforce2Svn::Mapping
       @svn_from = svn_from
       @svn_to = svn_to
     end
+
+    def execute!(svn_txn)
+      svn_txn.copy(@svn_from, @svn_to)
+    end
   end
 
   class Mkdir < Command
@@ -30,6 +26,10 @@ module Perforce2Svn::Mapping
     def initialize(tok, svn_path)
       super(tok)
       @svn_path = svn_path
+    end
+
+    def execute!(svn_txn)
+      svn_txn.mkdir(@svn_path)
     end
   end
 
@@ -40,6 +40,10 @@ module Perforce2Svn::Mapping
       @svn_from = svn_from
       @svn_to = svn_to
     end
+
+    def execute!(svn_txn)
+      svn_txn.move(@svn_from, @svn_to)
+    end
   end
 
   class Update < Command
@@ -49,40 +53,23 @@ module Perforce2Svn::Mapping
       @svn_path = svn_path
       @live_path = live_path
     end
+
+    def execute!(svn_txn)
+      File.open(@live_path, 'r') do |fstream|
+        svn_txn.update(@svn_path, fstream)
+      end
+    end
   end
 
-  class Remove < Command
+  class Delete < Command
     attr_reader :svn_path
     def initialize(tok, svn_path)
       super(tok)
       @svn_path = svn_path
     end
-  end
 
-  class BranchMapping < Command
-    attr_reader :p4_path, :svn_path
-
-    def initialize(tok, p4_path, svn_path)
-      super(tok)
-      @p4_path = p4_path
-      @svn_path = svn_path
-    end
-
-    def p4_dotted
-      @p4_path + '...'
-    end
-
-    def matches_perforce_path?(other_p4_path)
-      (other_p4_path =~ /^#{p4_path}/) != nil
-    end
-
-    def to_svn_path(other_p4_path)
-      opath = other_p4_path.gsub(p4_path, svn_path)
-      opath.gsub!("%40", "@")
-      opath.gsub!("%23", "#")
-      opath.gsub!("%2a", "*")
-      opath.gsub!("%25", "%")
-      opath
+    def execute!(svn_txn)
+      svn_txn.delete(@svn_path)
     end
   end
 end

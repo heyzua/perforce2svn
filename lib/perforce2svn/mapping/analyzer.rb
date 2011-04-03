@@ -2,10 +2,10 @@ require 'perforce2svn/logging'
 
 module Perforce2Svn::Mapping
   class Analyzer
+    include Perforce2Svn::Logging
     
-    def initialize(log, base_path)
+    def initialize(base_path)
       @base_path = base_path
-      @log = log
     end
 
     def check(commands)
@@ -18,8 +18,8 @@ module Perforce2Svn::Mapping
             path = File.join(@base_path, path)
           end
           
-          if not File.exists? path
-            @log.error("(line #{command.line_number}) The live path doesn't exist: #{command.live_path}")
+          unless File.file? path
+            log.error("(line #{command.line_number}) The live path doesn't exist: #{command.live_path}")
             succeeded = false
           end
         end

@@ -16,10 +16,6 @@ module Perforce2Svn::Subversion
       @possible_deletions = Set.new
     end
 
-    def update(path, content_stream)
-      add(path, content_stream)
-    end
-
     def symlink(original_path, new_path)
       mkfile new_path
 
@@ -32,7 +28,7 @@ module Perforce2Svn::Subversion
       stream.close
     end
 
-    def add(path, content_stream, binary = false)
+    def update(path, content_stream, binary = false)
       if path.nil? or path == ''
         raise Perforce2Svn::SvnTransactionError, "The subversion path was empty"
       end
@@ -130,5 +126,5 @@ module Perforce2Svn::Subversion
         delete_empty_parents parent_path(path)
       end
     end
-  end #SvnTransaction
+  end#SvnTransaction
 end

@@ -2,23 +2,20 @@
 module Perforce2Svn
   module Mapping
     class Token
-      attr_reader :value, :line
+      attr_reader :name, :args, :line_number
 
-      def initialize(line, value)
-        @value = value
-        @line = line
+      def initialize(name, args, line_number)
+        @name = name.gsub(/-/, '_')
+        @args = args
+        @line_number = line_number
       end
 
       def [](index)
-        @value[index]
-      end
-
-      def arg_count
-        @value.length - 1
+        @args[index]
       end
 
       def to_s
-        "{line: #{line}; values: #{value.join(' ')} }"
+        "{@(#{line_number}) name: #{name}; args: #{args.join(' ')} }"
       end
     end
 
@@ -51,7 +48,8 @@ module Perforce2Svn
               previous << parts
             else
               previous = []
-              yield Token.new(i, parts)
+              name = parts.shift
+              yield Token.new(name, parts, i)
             end
           end
 

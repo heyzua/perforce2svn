@@ -33,14 +33,6 @@ module Perforce2Svn::Perforce
       action == 'delete'
     end
 
-    def src_parent
-      File.dirname(@src)
-    end
-
-    def dest_parent
-      File.dirname(@dest)
-    end
-
     def to_s
       "(#{@action}:#{@type}@#{@revision})\t#{@src}"
     end

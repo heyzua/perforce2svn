@@ -1,22 +1,21 @@
 require 'perforce2svn/logging'
 require 'perforce2svn/mapping/analyzer'
+require 'perforce2svn/mapping/commands'
+require 'ostruct'
 
 module Perforce2Svn::Mapping
 
   module AnalyzerHelper
     def analyzing(*commands)
-      a = Analyzer.new(Perforce2Svn::Logging.log, File.dirname(__FILE__))
+      a = Analyzer.new(File.dirname(__FILE__))
       a.check(commands)
-    end
-
-    def adder(file = nil)
-      file ||= __FILE__
-      Add.new(Token.new(nil, 1), nil, file)
     end
 
     def updater(file = nil)
       file ||= __FILE__
-      Update.new(Token.new(nil, 1), nil, file)
+      tok = OpenStruct.new
+      tok.line_number = 1
+      Update.new(tok, nil, file)
     end
   end
 
@@ -31,21 +30,12 @@ module Perforce2Svn::Mapping
       analyzing(updater("nowhere")).should be(false)
     end
 
-    it "should be able to locate added files" do
-      analyzing(adder).should be(true)
-    end
-
-    it "should not be able to locate non-existent additions" do
-      analyzing(adder("nowhere")).should be(false)
-    end
-
     it "should be able to check multiple files" do
-      analyzing(adder, updater("nowhere")).should be(false)
+      analyzing(updater("nowhere")).should be(false)
     end
 
     it "should be able to check when a file has a relative path" do
-      analyzing(adder(File.basename(__FILE__))).should be(true)
+      analyzing(updater(File.basename(__FILE__))).should be(true)
     end
   end
-
 end
