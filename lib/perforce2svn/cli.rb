@@ -91,8 +91,14 @@ module Perforce2Svn
           para "Also, you may notice that some files are not exactly the same after the migration. The p4 utility occasionally adds newline characters at the end of the file stream, for inexplicable reasons, so sometimes there is an extra newline at the end of some text files. There's really no way around it."
         end
 
+        section "LICENSE" do
+          para "This software is licensed under the MIT license. No warranty is expressed or implied by this software's use."
+          para "This software shall be used for Good, not Evil."
+        end
+
         section "AUTHOR" do
           para "Gabe McArthur <madeonamac@gmail.com>"
+          para "Submit fixes to: https://github.com/gabemc/perforce2svn"
         end
 
         arguments do
