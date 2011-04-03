@@ -9,7 +9,7 @@ module Perforce2Svn::Subversion
 
     SVN_MIME_TYPE = 'svn:mime-type'
     BINARY_MIME_TYPE = 'application/octet-stream'
-    BLOCK_SIZE = 2048
+    BLOCK_SIZE = 8184 # TODO: Maybe make this configurable?
 
     def initialize(txn)
       @txn = txn
@@ -22,8 +22,8 @@ module Perforce2Svn::Subversion
       # Apply the properties
       @txn.root.set_node_prop(new_path, 'svn:special', '*')
       stream = @txn.root.apply_text(new_path)
-      log.debug("SVN: Writing symlink: #{new_path}")
-      log.debug("SVN:      Linking to: #{original_path}")
+      log.debug("SVN: Writing symlink:\t#{new_path}")
+      log.debug("SVN:      Linking to:\t#{original_path}")
       stream.write("link #{original_path}")
       stream.close
     end
@@ -45,7 +45,7 @@ module Perforce2Svn::Subversion
 
       # Open the output stream to write the contents to
       outstream = @txn.root.apply_text(path)
-      log.debug("SVN: Writing file: #{path}")
+      log.debug("SVN: Writing file:\t#{path}")
 
       begin
         while buf = content_stream.readpartial(BLOCK_SIZE)
@@ -66,7 +66,7 @@ module Perforce2Svn::Subversion
         current_path += '/' + part
         if not exists? current_path
           @txn.root.make_dir(current_path)
-          log.debug("SVN: Creating directory: #{current_path}")
+          log.debug("SVN: Adding directory:\t#{current_path}")
         end
       end
     end
@@ -104,7 +104,7 @@ module Perforce2Svn::Subversion
       mkdir parent_path(path)
       if not exists? path
         @txn.root.make_file(path)
-        log.debug("SVN: Creating file: #{path}")
+        log.debug("SVN: Creating file:\t#{path}")
       end
     end
 
@@ -122,7 +122,7 @@ module Perforce2Svn::Subversion
 
       if exists? path and not has_children? path
         @txn.root.delete(path)
-        log.debug("SVN: Deleting directory: #{path}")
+        log.debug("SVN: Deleting directory:\t#{path}")
         delete_empty_parents parent_path(path)
       end
     end

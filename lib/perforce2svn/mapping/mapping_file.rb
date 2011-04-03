@@ -57,7 +57,7 @@ module Perforce2Svn::Mapping
 
     def analyze(mapping_file)
       analyzer = Analyzer.new(File.dirname(mapping_file))
-      if !analyzer.check(migration.commands) || !analyzer.check(migration.branch_mappings)
+      if !analyzer.check(@commands) || !analyzer.check(@mappings)
         Terminal.die "Analysis of mapping file failed"
       end
     end

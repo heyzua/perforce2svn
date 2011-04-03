@@ -1,5 +1,7 @@
 require 'perforce2svn/errors'
 require 'perforce2svn/version_range'
+require 'perforce2svn/mapping/mapping_file'
+require 'perforce2svn/migrator'
 require 'choosy'
 
 module Perforce2Svn
@@ -23,7 +25,7 @@ module Perforce2Svn
                 :date => version_info.date,
                 :manual => 'Perforce2Svn'
 
-        executor do |args, option|
+        executor do |args, options|
           migrator = Migrator.new(args[0], options)
           migrator.run!
         end

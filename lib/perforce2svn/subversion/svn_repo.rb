@@ -15,9 +15,11 @@ module Perforce2Svn::Subversion
     # Initializes a repository at a given path.
     # IF that repository does not exist, it creates one.
     def initialize(repository_path)
+      raise ArgumentError, "No path given" if repository_path.nil?
+
       @repository_path = repository_path
 
-      if not File.exists? repository_path
+      unless File.directory? repository_path
         fs_config = {
           Svn::Fs::CONFIG_FS_TYPE => Svn::Fs::TYPE_FSFS
         }

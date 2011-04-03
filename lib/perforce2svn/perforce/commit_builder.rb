@@ -1,6 +1,7 @@
 require 'perforce2svn/logging'
 require 'perforce2svn/perforce/perforce_file'
 require 'perforce2svn/perforce/p4_depot'
+require 'perforce2svn/mapping/branch_mapping'
 require 'iconv'
 require 'svn/core'
 
@@ -9,19 +10,19 @@ module Perforce2Svn::Perforce
   class PerforceCommit
     include Perforce2Svn::Logging
 
-    attr_reader :author, :log, :time, :revision, :files
+    attr_reader :author, :message, :time, :revision, :files
     
-    def initialize(revision, author, log, time, files)
+    def initialize(revision, author, message, time, files)
       @author = author
       @revision = revision
-      @log = log
+      @message = message
       @time = time
       @files = files
     end
 
     def log!
       to_s.each_line do |line|
-        log.info line
+        log.info line.chomp
       end
     end
 
@@ -31,15 +32,15 @@ module Perforce2Svn::Perforce
 Perforce Revision: #{revision}
 Time: #{time}
 User: #{author}
-Log:
+Message:
 EOF
-      @log.each_line do |line|
+      @message.each_line do |line|
         header << "    #{line}"
       end
 
       header << "\nTotal Files: #{@files.length}\n"
       @files.each do |file|
-        @header << "    #{file}\n"
+        header << "    #{file}\n"
       end
 
       header
@@ -62,12 +63,24 @@ EOF
         version_range.reset_to_head(P4Depot.instance.latest_revision)
       end
 
+      skipped_previous = false
       version_range.min.upto(version_range.max) do |revision|
         commit = commit_at(revision)
         if commit
+          if skipped_previous
+            print "\n"
+          end
+          skipped_previous = false
           yield commit
         else
-          log.debug "Skipping irrelevant revision: #{revision}"
+          if log.debug? 
+            log.info "Skipping irrelevant revision: #{revision}"
+          elsif skipped_previous
+            print "\r[INFO]  Skipping irrelevant revision: #{revision}"
+          else
+            print "[INFO]  Skipping irrelevant revision: #{revision}"
+          end
+          skipped_previous = true
         end
       end
     end
@@ -76,7 +89,7 @@ EOF
       P4Depot.instance.query do |p4|
         log.debug "PERFORCE: Inspecting revision: #{revision}"
         raw_commit = p4.run('describe', '-s', "#{revision}")[0]
-        return build_from(perforce_commit)
+        return build_from(raw_commit)
       end
     end
 
@@ -100,7 +113,7 @@ EOF
     def unpack_file_changes(raw_commit)
       depot_files = raw_commit['depotFile']
       if depot_files.nil? || depot_files.length == 0
-        log.dubug "No files relavent"
+        log.debug "No files present"
         return nil
       end
 
@@ -117,7 +130,7 @@ EOF
       end
 
       if file_changes.empty?
-        log.debug("No relevant files")
+        log.debug "No relevant files"
         nil
       else
         file_changes
@@ -132,8 +145,10 @@ EOF
       end
     end
 
+    # TODO: Add regular expression joining
     def find_svn_path(perforce_path)
       @mappings.each do |mapping|
+        log.debug "Checking path: #{perforce_path}"
         if mapping.matches_perforce_path? perforce_path
           return mapping.to_svn_path perforce_path
         end

@@ -8,22 +8,28 @@ module Perforce2Svn
     @@log = nil
 
     def self.configure(debug)
-      if not @@log.nil?
+      if @@log.nil?
         @@log = Log4r::Logger.new 'perforce2svn'
-        @@log.outputters = Log4r::Outputter.stderr
-        @@log.level = debug ? Log4r::DEBUG : Log4r::INFO
-        Log4r::Outputter.stderr.formatter = Log4r::PatternFormatter.new(:pattern => "[%l]\t%M")
+        @@log.outputters = Log4r::Outputter.stdout
+        @@log.level = if ENV['RSPEC_RUNNING']
+                        Log4r::FATAL
+                      elsif debug
+                        Log4r::DEBUG
+                      else
+                        Log4r::INFO
+                      end
+        Log4r::Outputter.stdout.formatter = Log4r::PatternFormatter.new(:pattern => "[%l]\t%M")
       end
       @@log
     end
     
     def self.log
-      @@log ||= Log4r::Logger.root
+      @@log ||= configure(true)
     end
     
     # Meant for mixing into other classes for simplified logging
     def log
-      @@log ||= Log4r::Logger.root
+      @@log ||= Logging.log
     end
   end
 end

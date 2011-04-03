@@ -37,7 +37,7 @@ module Perforce2Svn::Perforce
       end
 
       it "should fix the log message" do
-        @commit.log.should eql("A log\ngoes here")
+        @commit.message.should eql("A log\ngoes here")
       end
 
       it "should filter out the unnecessary files" do

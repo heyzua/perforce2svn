@@ -34,7 +34,7 @@ module Perforce2Svn::Perforce
     end
 
     def to_s
-      "(#{@action}:#{@type}@#{@revision})\t#{@src}"
+      "(#{@action}:#{@type}\##{@revision})\t#{@src}"
     end
 
     # Retrieves the target of a symlink
@@ -55,12 +55,12 @@ module Perforce2Svn::Perforce
     # Pull a stream from a file at a specified file revision
     def streamed_contents(&block)
       raise Perforce2Svn::P4Error, "Requires a block to pull the file stream" unless block_given?
-      log.debug {  "PERFORCE: Reading file: #{@src}@#{@revision}" }
+      log.debug {  "PERFORCE: Reading file: #{@src}\##{@revision}" }
 
       tmpfile = File.join(Dir.tmpdir, ".p4file-#{rand}")
       begin
         P4Depot.instance.query do |p4|
-          p4.run('print', '-o', tmpfile, '-q', "#{@src}@#{@revision}")
+          p4.run('print', '-o', tmpfile, '-q', "#{@src}\##{@revision}")
         end
 
         if !File.file? tmpfile

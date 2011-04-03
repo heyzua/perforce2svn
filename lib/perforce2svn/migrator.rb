@@ -2,7 +2,9 @@ require 'perforce2svn/logging'
 require 'perforce2svn/errors'
 require 'perforce2svn/environment'
 require 'perforce2svn/mapping/mapping_file'
-require 'perforce2svn/perforce/command_builder'
+require 'perforce2svn/perforce/commit_builder'
+require 'perforce2svn/subversion/svn_repo'
+require 'perforce2svn/version_range'
 require 'choosy/terminal'
 
 module Perforce2Svn
@@ -15,15 +17,15 @@ module Perforce2Svn
       Environment.new.check!
 
       @migration_file = Mapping::MappingFile.new(migrator_file, options)
-      @svnRepo = Perforce2Svn::Subversion::SvnRepo.new(options[:repository_path])
-      @command_builder = Perforce::CommandBuilder.new(@migration_file.mappings)
-      @version_range = options[:changes]
+      @svnRepo = Perforce2Svn::Subversion::SvnRepo.new(options[:repository])
+      @commit_builder = Perforce::CommitBuilder.new(@migration_file.mappings)
+      @version_range = options[:changes] || VersionRange.new(1)
       @options = options
     end
 
     def run!
       begin
-        @command_builder.commits_in(@version_range) do |commit|
+        @commit_builder.commits_in(@version_range) do |commit|
           migrate_commit(commit)
         end unless @options[:skip_perforce]
 
@@ -34,6 +36,7 @@ module Perforce2Svn
         @svnRepo.clean_transactions!
         die "Interrupted. Not continuing."
       rescue Exception => e
+        puts e.backtrace
         log.error e
         die "Unable to complete migration."
       end
@@ -42,7 +45,7 @@ module Perforce2Svn
     private
     def migrate_commit(commit)
       commit.log!
-      @svnRepo.transaction(commit.author, commit.time, commit.log) do |txn|
+      @svnRepo.transaction(commit.author, commit.time, commit.message) do |txn|
         commit.files.each do |file|
           if file.deleted?
             txn.delete(file.dest)

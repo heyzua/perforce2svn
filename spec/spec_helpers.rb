@@ -1,6 +1,8 @@
 require 'stringio'
 require 'time'
 
+ENV['RSPEC_RUNNING'] = 'true'
+
 def attempting(&block)
   lambda &block
 end
